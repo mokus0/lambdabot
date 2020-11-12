@@ -166,16 +166,16 @@ online tag hostn portnum nickn ui = do
             putMVar sendmv ()
             SSem.signal sem1
         fin <- io $ SSem.new 0
-        E.catch
-            (registerServer tag (io . sendMsg sock sendmv fin))
-            (\err@SomeException{} -> io (hClose sock) >> E.throwIO err)
-        lb $ ircSignOn hostn (Nick tag nickn) pwd ui
         ready <- io $ SSem.new 0
+        E.catch
+            (registerServer tag (io . sendMsg sock sendmv fin ready))
+            (\err@SomeException{} -> io (hClose sock) >> E.throwIO err)
         lb $ void $ forkFinally
             (E.catch
                 (readerLoop tag nickn pongref sock ready)
                 (\e@SomeException{} -> errorM (show e)))
             (const $ io $ SSem.signal fin)
+        lb $ ircSignOn hostn (Nick tag nickn) pwd ui
         void $ forkFinally
             (E.catch
                 (pingPongDelay >> pingPongLoop tag hostn pongref sock)
@@ -237,12 +237,19 @@ readerLoop tag nickn pongref sock ready = forever $ do
             if ircMsgCommand msg == "PONG"
                 then io $ writeIORef pongref True
                 else do
-                    when (ircMsgCommand msg == "001") $ io $ SSem.signal ready
+                    when (ircMsgCommand msg `elem` ["001", "MODE"]) $ io $ SSem.signal ready
                     received msg
 
-sendMsg :: Handle -> MVar () -> SSem.SSem -> IrcMessage -> IO ()
-sendMsg sock mv fin msg =
+sendMsg :: Handle -> MVar () -> SSem.SSem -> SSem.SSem -> IrcMessage -> IO ()
+sendMsg sock mv fin _ready msg
+    | ircMsgCommand msg `elem` ["PASS", "USER", "NICK"] =
+      E.catch (do takeMVar mv
+                  P.hPut sock $ P.pack $ encodeMessage msg "\r\n")
+              (\err -> do errorM (show (err :: IOError))
+                          SSem.signal fin)
+sendMsg sock mv fin ready msg =
     E.catch (do takeMVar mv
-                P.hPut sock $ P.pack $ encodeMessage msg "\r\n")
+                SSem.withSem ready $
+                  P.hPut sock $ P.pack $ encodeMessage msg "\r\n")
             (\err -> do errorM (show (err :: IOError))
                         SSem.signal fin)
