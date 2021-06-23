@@ -634,6 +634,7 @@ listToMaybe (a:_) = Just a
 catMaybes
 catMaybes ls = [x | Just x <- ls]
 
+Either
 data Either a b = Left a | Right b
 
 either
@@ -710,6 +711,7 @@ fromDynamic (Dynamic t v) = case unsafeCoerce v of
     r | t == typeOf r -> Just r
       | otherwise     -> Nothing
 
+second
 second f = arr swap >>> first f >>> arr swap
     where swap ~(x,y) = (y,x)
 
@@ -781,6 +783,7 @@ swapMVar mvar new = block $ do
     putMVar mvar new
     return old
 
+withMVar
 withMVar m io = block $ do
     a <- takeMVar m
     b <- Exception.catch (unblock (io a)) (\e -> do putMVar m a; throw e)
