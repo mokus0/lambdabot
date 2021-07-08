@@ -69,6 +69,7 @@ offlineRCPlugin = newModule
 feed :: String -> OfflineRC ()
 feed msg = do
     cmdPrefix <- fmap head (getConfig commandPrefixes)
+    cmdUser <- getConfig consoleUser
     let msg' = case msg of
             '>':xs -> cmdPrefix ++ "run " ++ xs
             '!':xs -> xs
@@ -77,7 +78,7 @@ feed msg = do
     lb . void . timeout (15 * 1000 * 1000) . received $
               IrcMessage { ircMsgServer = "offlinerc"
                          , ircMsgLBName = "offline"
-                         , ircMsgPrefix = "null!n=user@null"
+                         , ircMsgPrefix = cmdUser ++ "!n=user@null"
                          , ircMsgCommand = "PRIVMSG"
                          , ircMsgParams = ["offline", ":" ++ encodeString msg' ] }
 

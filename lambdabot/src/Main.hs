@@ -27,6 +27,7 @@ flags =
     , Option "V"  ["version"] (NoArg version)                       "Print the version of lambdabot"
     , Option "X"  []        (arg "<extension>" languageExts strs)   "Set a GHC language extension for @run"
     , Option "n"  ["nice"]  (NoArg noinsult)                        "Be nice (disable insulting error messages)"
+    , Option "u"  []        (arg "<user>" consoleUser return)       "Run -e commands as given user"
     ] where 
         arg :: String -> Config t -> (String -> IO t) -> ArgDescr (IO (DSum Config Identity))
         arg descr key fn = ReqArg (fmap (key ==>) . fn) descr
